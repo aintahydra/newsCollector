@@ -4,8 +4,6 @@ import feedparser
 import re
 import logging
 
-#it should crawl google news about 'keywords'
-# and return a dictionary list of news articles in which date, publisher, link of each article are included
 class NewsCrawler:
 
     def __init__(self):
@@ -16,9 +14,10 @@ class NewsCrawler:
         text = re.sub(tagpattern, '', textwtags)
         return text
     
-    def getNews(self, url):
+    def getNews(self, url, num=100):
    
         news_list = []
+        news_count = 0
 
         try: 
             res = requests.get(url)
@@ -33,15 +32,18 @@ class NewsCrawler:
                     content = ""
 
                     ### Filterout some news sources
-                    banned_sources = ['businesswire.com', 'prospect.org']
+                    banned_sources = ['businesswire.com', 'spiceworks.com'] 
+
                     if any(domain in newslink for domain in banned_sources):
                         logging.debug("Skipping a banned source: {}".format(newslink))
                         pass
                     
-                    news_list.append({"date": pubdate, "publisher": publisher, "title": title, "link": newslink, "content": content})
-
+                    news_list.append({"date": pubdate, "publisher": publisher, "title": title, "link": newslink, "content": content})#, "content": newscontent)
+                    
+                    news_count = news_count + 1
+                    if (news_count + 1 == num):
+                        return news_list
             else:
-                #raise Exception("HTTP Error")
                 logging.debug("HTTP Error")
         except requests.exceptions.RequestException as err:
             logging.debug('Error Requests: {}'.format(err))
@@ -58,8 +60,6 @@ if __name__ == "__main__":
     crawler = NewsCrawler()
     
     if len(sys.argv) != 2:
-        # print("Usage: {sys.argv[0]} URL , where URL refers to a news article")
-        # sys.exit()
         crawler.getNews(gnews_url.format(keywords=test_keywords, days="30"))
     else:
         kwrds = sys.argv[1].replace(' ', '%20')

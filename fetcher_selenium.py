@@ -5,7 +5,8 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.support import expected_conditions as EC
-import time # occasionally needed
+import time
+
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 import re
@@ -16,14 +17,12 @@ class Fetcher:
         pass
 
     def refine(self, text):
-        text= text.replace('\xa0','') # remove useless unicode characters
+        text= text.replace('\xa0','') 
 
         for _ in range(10):
-            text=text.replace('\n\n','\n').replace('  ',' ') # remove multiple \n
+            text=text.replace('\n\n','\n').replace('  ',' ')
         return text
     
-    #Collects all text from children p tags of the given parent_tag
-    # the following function works in the context of beautifulsoup
     def collect_content(self, parent_tag):
         content = ''
         for tag in parent_tag:
@@ -42,10 +41,11 @@ class Fetcher:
 
         domain_str = urlparse(url).netloc
 
-        # patterns obtined from frequently appeared sources
-        # RegExes below are supposed to be obtained from the 'class=...' property
+        # investigated patterns (especially for frequently appeared sources when I looked for cybersecurity-related articles from news.google.com
+        # nagged by techtarget.com, securityintelligence.com, 
+        # RegExes are supposed to be obtained from the class property
         domain_class_mapping = {
-            "apnews.com": [re.compile(r'^RichTextStoryBody')],
+            "apnews.com": [re.compile(r'^RichTextStoryBody')], #soup.find_all('div', class_='RichTextStoryBody RichTextBody') 
             "axios.com": [re.compile(r'^DraftjsBlocks')],
             "bbc.com": ['article'],
             "blog.checkpoint.com": ['div.container'],
@@ -58,11 +58,11 @@ class Fetcher:
             "forbes.com": [re.compile(r'^article-body')],
             "iapp.org": [re.compile(r'^Article-Body')],
             "infosecurity-magazine.com": ['div.content-module'],
-            "justice.gov": [re.compile(r'field-formatter--text-default'), 'div.node-body'],
+            "justice.gov": ['div.node-body'],
             "ncsc.gov.uk": ['div.pcf-articleWrapper', 'div.pcf-BodyText'],
-            "niccs.cisa.gov": [re.compile(r'field--name-body')], 
+            "niccs.cisa.gov": [re.compile(r'field--name-body')], #soup.find_all('div', class_='clearfix text-formatted field field--name-body field--type-text-with-summary field--label-hidden field__item') #niccs.cisa.gov
             "nist.gov": ['div.text-with-summary'],
-            "nsa.gov": ['div.body'], 
+            "nsa.gov": ['div.body'], #soup.find_all('div', class_='body') 
             "nytimes.com": ['div.css-53u6y8'],
             "reuters.com": ['div.text__text', re.compile(r'^text__text')],
             "rstreet.org": [re.compile(r'^post-')],
@@ -70,29 +70,48 @@ class Fetcher:
             "securityintelligence.com": ['div.grid__content.post', re.compile(r'post__content')],
             "spiceworks.com": ['div.gp-entry-text'],
             "state.gov": ['div.wp-block-paragraph'],
-            "techtarget.com": ['div.content-center', 'section#content-body', re.compile(r'^content-body')],
+            "techtarget.com": ['section#content-body', 'div.content-center', re.compile(r'^content-body')],
             "thehackernews.com": [re.compile(r'^articlebody'), 'div.articlebody'],
             "thehill.com": [re.compile(r'^article__text')],
             "theguardian.com": ['div.dcr-ch7w1w'],
             "therecord.media": ['div.article__content', 'span.wysiwyg-parsed-content', re.compile(r'wysiwyg-parsed-content')],
-            "theregister.com": ['div#body'],
+            "theregister.com": ['div#body'], #find_all('div', id='body')
             "thomsonreuters.com": ['div.article-body', re.compile(r'^article-content')],
             "tripwire.com": [re.compile(r'^field')],
             "wiley.law": ['div#itemContent'],
             "washingtontechnology.com": [re.compile(r'^content-body')],
-        } 
+            #
+            # related to maritime security
+            #
+            "afcea.org": ['div.paragraph__inner', 'div.field__item'],
+            "blackberry.com": ['div.text'],
+            "dailysignal.com": ['div.tds-content'],
+            "dartrace.com": ['div.blog-content-block'],
+            "euro-sd.com": ['div.pf-content'],
+            "heritage.org": ['div.article__body-copy'],
+            "house.gov": ['div.post-content'],
+            "marineinsight.com": ['div.entry-content-wrap'],
+            "marinelink.com": ['div.fr-view'],
+            "navy.mil": ['div.body-text'],
+            "rigzone.com": ['div.divArticleText'],
+            "rivieramm.com": ['div.aos-FeatureArticle', 'div.aoci'], #aos-FeatureArticle aos-TAC aos-PosR aos-FL100
+            "safety4sea.com": ['div.content-inner'],
+            "satellitetoday.com": ['div.inner-content'],
+            "seatrade-maritime.com": ['div.article-content'],
+            "washingtoninstitute.org": ['div.field-items'],
+        }
 
         # customized processing for the above sources
         for domain, selectors in domain_class_mapping.items():
             if domain in domain_str:
                 for selector in selectors:
                     if isinstance(selector, re.Pattern):
-                        elems = soup.find_all(class_=selector)
+                        divs = soup.find_all(class_=selector)
                     else:
-                        elems = soup.select(selector)
+                        divs = soup.select(selector)
                     cont = []
-                    for elem in elems:
-                        cont.append(elem.get_text(strip=True))
+                    for div in divs:
+                        cont.append(div.get_text(strip=True))
                         return cont
 
         # is still no content obtained
@@ -106,6 +125,8 @@ class Fetcher:
         div_tags_l = soup.find_all('div', id=re.compile('article'))
         div7 = soup.find_all('div', class_='main-text')
         div8 = soup.find_all('div', id='content')
+        #div10 = soup.find_all('div', class_='news-body')
+
         rest = soup.find_all(id='articleText')
 
         if div_tags:
@@ -131,7 +152,6 @@ class Fetcher:
         elif rest:
             return self.collect_content(rest)
         else:
-            # contingency
             c_list = [v.text for v in soup.find_all('p') if len(v.text) > 0]
             words_to_bans = ['<', 'javascript']
             for word_to_ban in words_to_bans:
@@ -150,29 +170,8 @@ class Fetcher:
         option.add_argument('--user-data-dir=temp_chrome_data')
         driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=option)
         driver.get(url)
-        #driver.save_screenshot('screen_now.png')
-
-        ##NOTE: when stucked by the CloudFlare anti-bot, 
-        ##      (1) uncomment the following sleep statement
-        ##      (2) when selenium opens Chrome, you manually open another tab and then manually access troublesome URLS (ex, darkreading.com)
-        ## The above assumes that (A) "--user-data-dir" is set for storing cookies 
-        ##
-        #time.sleep(20)
 
         content = []
-
-        # finding elements examples
-        #     #p_elems = driver.find_elements(By.TAG_NAME, 'p')
-        #     #d_elems = driver.find_elements(By.CSS_SELECTOR, "[data-testid='content-text']")
-        #     #d_elems = driver.find_element(By.CSS_SELECTOR, ".ContentParagraph")
-        #     #h_elems = driver.find_element(By.CSS_SELECTOR, "div[class^='articlebody']")
-        #     #d_elems = driver.find_element(By.XPATH, "//*[starts-with(@class='ContentText')]")
-        #     #p_elems = driver.find_elements(By.XPATH, "//span[starts-with(@class='ContentText')]")
-
-        # error page handling examples 
-        #     # if EC.title_contains("Just a moment"):
-        #     #     print("Filtered by the CloudFlare Anti-bot...")
-        #     pass
 
         html = driver.page_source
         content = self.process_with_soup(url, html)
@@ -183,7 +182,7 @@ class Fetcher:
 
 test_urls = [
     "https://www.darkreading.com/cloud-security/critical-bugs-hugging-face-ai-platform-pickle",
-    "https://thehackernews.com/2024/05/experts-find-flaw-in-replicate-ai.html"
+    "https://thehackernews.com/2024/05/experts-find-flaw-in-replicate-ai.html",
 ]
 
 if __name__ == "__main__":
