@@ -140,7 +140,7 @@ def get_news_summaries_from_crawling(search_url):
 
     # (4) News is ready, pass it to LLM
     # -----------------
-    for al in enumerate(article_list): 
+    for al in article_list: 
         if al['content'] : 
             print(f"\nDate: {al['date']}")
             print(f"Title: {al['title']}")
